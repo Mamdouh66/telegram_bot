@@ -1,10 +1,15 @@
 import os
 import logging
+import telegram
+import asyncio
 
 from dotenv import load_dotenv
 from typing import Final
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+
+from utils.convert import convert_to_image
+from utils.model import get_image
 
 load_dotenv()
 
@@ -38,19 +43,13 @@ async def custom_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # Responses
 
-def handle_response(text: str) -> str:
+def handle_response(text: str, update: Update) -> str:
     proccessed_text = text.lower()
 
-    if 'hello' in proccessed_text:
-        return 'Hello, I am a potato'
+    file_name = get_image(proccessed_text)
+    image = convert_to_image(file_name)
 
-    if 'potato' in proccessed_text:
-        return 'That is me, I am a potato'
-    
-    if 'bye' in proccessed_text:
-        return 'Bye, I am a potato'
-    
-    return 'Potato is confused'
+    return image
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message_type = update.message.chat.type # Checks if its a group or a private chat
@@ -61,14 +60,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if message_type == 'group':
         if BOT_USERNAME in text:
             new_text: str = text.replace(BOT_USERNAME, '').strip()
-            response = handle_response(new_text) 
+            response = handle_response(new_text, update) 
         else:
             return
     else: 
-        response = handle_response(text)
-
-    print(f'Bot responded with: {response}')
-    await update.message.reply_text(response)
+        response = handle_response(text, update)
+    
+    await update.message.reply_photo(photo=open(response,'rb'))
 
 async def error(update: Update, context: ContextTypes.DEFAULT_TYPE):
     print(f'Update {update} caused error {context.error}')
